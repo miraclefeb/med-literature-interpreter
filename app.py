@@ -26,8 +26,8 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📖 使用说明")
     st.markdown("""
-    1. 输入医学问题
-    2. 系统自动搜索PubMed
+    1. 输入医学问题（中文/英文均可）
+    2. 系统自动翻译并搜索PubMed
     3. 生成结构化解读
     
     **解读维度：**
@@ -42,7 +42,7 @@ with st.sidebar:
 
 # 主界面
 query = st.text_input(
-    "🔍 输入医学问题",
+    "🔍 输入医学问题（中文/英文均可）",
     placeholder="例如：SGLT2抑制剂在心血管疾病中的作用"
 )
 
@@ -52,13 +52,46 @@ if st.button("🚀 开始解读", type="primary"):
     elif not deepseek_api_key:
         st.error("请在侧边栏配置 DeepSeek API Key")
     else:
+        # 初始化AI客户端
+        client = OpenAI(
+            api_key=deepseek_api_key,
+            base_url="https://api.deepseek.com"
+        )
+        
+        # 1. 翻译问题为英文（如果是中文）
+        with st.spinner("正在处理问题..."):
+            try:
+                # 检测是否包含中文
+                has_chinese = any('\u4e00' <= char <= '\u9fff' for char in query)
+                
+                if has_chinese:
+                    st.info("🌐 检测到中文问题，正在翻译为英文...")
+                    translate_response = client.chat.completions.create(
+                        model="deepseek-chat",
+                        messages=[
+                            {"role": "system", "content": "你是一个医学翻译助手。请将用户的中文医学问题翻译成准确的英文医学术语，用于PubMed搜索。只返回翻译结果，不要解释。"},
+                            {"role": "user", "content": f"翻译这个医学问题：{query}"}
+                        ],
+                        temperature=0.3,
+                        max_tokens=200
+                    )
+                    english_query = translate_response.choices[0].message.content.strip()
+                    st.success(f"✅ 翻译结果: {english_query}")
+                else:
+                    english_query = query
+                    st.info(f"🔍 搜索关键词: {english_query}")
+                
+            except Exception as e:
+                st.error(f"翻译失败: {str(e)}")
+                english_query = query
+        
+        # 2. 搜索PubMed
         with st.spinner("正在搜索文献..."):
-            # 1. 搜索PubMed
             try:
                 search_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
                 search_params = {
                     "db": "pubmed",
-                    "term": query,
+                    "term": english_query,
                     "retmax": max_results,
                     "retmode": "json",
                     "sort": "relevance"
@@ -69,11 +102,11 @@ if st.button("🚀 开始解读", type="primary"):
                 pmids = search_data.get("esearchresult", {}).get("idlist", [])
                 
                 if not pmids:
-                    st.warning("未找到相关文献")
+                    st.warning("未找到相关文献，请尝试：\n- 使用更通用的医学术语\n- 简化问题描述\n- 使用英文关键词")
                 else:
                     st.success(f"找到 {len(pmids)} 篇文献")
                     
-                    # 2. 获取文献详情
+                    # 3. 获取文献详情
                     fetch_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
                     fetch_params = {
                         "db": "pubmed",
@@ -82,7 +115,7 @@ if st.button("🚀 开始解读", type="primary"):
                     }
                     fetch_response = requests.get(fetch_url, params=fetch_params, timeout=10)
                     
-                    # 3. 解析XML
+                    # 4. 解析XML
                     import xml.etree.ElementTree as ET
                     root = ET.fromstring(fetch_response.content)
                     
@@ -114,12 +147,7 @@ if st.button("🚀 开始解读", type="primary"):
                         except Exception as e:
                             continue
                     
-                    # 4. 为每篇文献生成解读
-                    client = OpenAI(
-                        api_key=deepseek_api_key,
-                        base_url="https://api.deepseek.com"
-                    )
-                    
+                    # 5. 为每篇文献生成解读
                     for idx, article in enumerate(articles, 1):
                         with st.expander(f"📄 文献 {idx}: {article['title'][:80]}...", expanded=(idx==1)):
                             # 生成解读
