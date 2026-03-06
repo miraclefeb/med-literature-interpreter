@@ -590,13 +590,33 @@ if st.session_state.query_done and st.session_state.articles:
             
             # 显示解读
             if st.session_state.get(interpretation_key):
+                # 先提取一句话总结
+                lines = st.session_state[interpretation_key].split('\n')
+                conclusion_text = None
+                current_section = None
+                for line in lines:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    if line.startswith('【') and line.endswith('】'):
+                        section_name = line[1:-1]
+                        if section_name == "一句话结论":
+                            current_section = "conclusion"
+                            continue
+                    elif current_section == "conclusion":
+                        conclusion_text = line
+                        break
+                
+                # 开始卡片
                 st.markdown('<div class="literature-card">', unsafe_allow_html=True)
                 
-                # 提取并显示一句话总结
-                conclusion = render_interpretation(st.session_state[interpretation_key])
-                if conclusion:
+                # 第一行：显示一句话总结
+                if conclusion_text:
                     st.markdown(f'<div class="section-header">一句话总结</div>', unsafe_allow_html=True)
-                    st.markdown(f'<div class="conclusion-highlight">{conclusion}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="conclusion-highlight">{conclusion_text}</div>', unsafe_allow_html=True)
+                
+                # 然后渲染其他内容
+                render_interpretation(st.session_state[interpretation_key])
                 
                 st.markdown('</div>', unsafe_allow_html=True)
                 
