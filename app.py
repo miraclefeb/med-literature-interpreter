@@ -294,7 +294,25 @@ def highlight_stats(text: str) -> str:
 
 def render_interpretation(interpretation: str):
     """渲染解读内容"""
-    lines = interpretation.split('\n')
+    lines = interpretation.split("\n")
+    current_section = None
+    conclusion_text = None
+    
+    # 第一遍：提取一句话结论
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        if line.startswith("【") and line.endswith("】"):
+            section_name = line[1:-1]
+            if section_name == "一句话结论":
+                current_section = "conclusion"
+                continue
+        elif current_section == "conclusion":
+            conclusion_text = line
+            break
+    
+    # 第二遍：渲染所有内容（跳过一句话结论）
     current_section = None
     
     for line in lines:
@@ -302,14 +320,11 @@ def render_interpretation(interpretation: str):
         if not line:
             continue
         
-        # 检测章节
-        if line.startswith('【') and line.endswith('】'):
+        if line.startswith("【") and line.endswith("】"):
             section_name = line[1:-1]
             
-            # 一句话结论特殊处理
             if section_name == "一句话结论":
-                st.markdown(f'<div class="section-header">一句话总结</div>', unsafe_allow_html=True)
-                current_section = "conclusion"
+                current_section = "skip_conclusion"
                 continue
             elif section_name == "证据标签":
                 st.markdown(f'<div class="section-header">证据标签</div>', unsafe_allow_html=True)
@@ -319,61 +334,57 @@ def render_interpretation(interpretation: str):
                 st.markdown(f'<div class="section-header">{section_name}</div>', unsafe_allow_html=True)
                 current_section = section_name
         
-        # 渲染内容
-        elif current_section == "conclusion":
-            # 下一行是结论内容
-            st.markdown(f'<div class="conclusion-highlight">{line}</div>', unsafe_allow_html=True)
+        elif current_section == "skip_conclusion":
             current_section = None
+            continue
         
         elif current_section == "evidence":
-            # 解析标签
-            if '研究类型：' in line or '研究类型:' in line:
-                content = line.split('：')[-1].split(':')[-1].strip()
-                badge_class = 'badge'
-                if 'RCT' in content.upper():
-                    badge_class += ' badge-rct'
-                elif 'Meta' in content:
-                    badge_class += ' badge-meta'
-                elif 'Cohort' in content or '队列' in content:
-                    badge_class += ' badge-cohort'
-                elif 'Review' in content or '综述' in content:
-                    badge_class += ' badge-review'
+            if "研究类型：" in line or "研究类型:" in line:
+                content = line.split("：")[-1].split(":")[-1].strip()
+                badge_class = "badge"
+                if "RCT" in content.upper():
+                    badge_class += " badge-rct"
+                elif "Meta" in content:
+                    badge_class += " badge-meta"
+                elif "Cohort" in content or "队列" in content:
+                    badge_class += " badge-cohort"
+                elif "Review" in content or "综述" in content:
+                    badge_class += " badge-review"
                 st.markdown(f'<div style="margin: 8px 0;"><strong>研究类型：</strong><span class="{badge_class}">{content}</span></div>', unsafe_allow_html=True)
             
-            elif '证据等级：' in line or '证据等级:' in line:
-                content = line.split('：')[-1].split(':')[-1].strip()
-                badge_class = 'badge'
-                if '高' in content:
-                    badge_class += ' badge-high'
-                elif '中' in content:
-                    badge_class += ' badge-medium'
-                elif '低' in content:
-                    badge_class += ' badge-low'
+            elif "证据等级：" in line or "证据等级:" in line:
+                content = line.split("：")[-1].split(":")[-1].strip()
+                badge_class = "badge"
+                if "高" in content:
+                    badge_class += " badge-high"
+                elif "中" in content:
+                    badge_class += " badge-medium"
+                elif "低" in content:
+                    badge_class += " badge-low"
                 st.markdown(f'<div style="margin: 8px 0;"><strong>证据等级：</strong><span class="{badge_class}">{content}</span></div>', unsafe_allow_html=True)
             
-            elif '样本量：' in line or '样本量:' in line:
-                content = line.split('：')[-1].split(':')[-1].strip()
+            elif "样本量：" in line or "样本量:" in line:
+                content = line.split("：")[-1].split(":")[-1].strip()
                 highlighted = highlight_stats(content)
                 st.markdown(f'<div style="margin: 8px 0;"><strong>样本量：</strong>{highlighted}</div>', unsafe_allow_html=True)
             
-            elif '期刊级别：' in line or '期刊级别:' in line:
-                content = line.split('：')[-1].split(':')[-1].strip()
-                badge_class = 'badge'
-                if '顶级' in content:
-                    badge_class += ' badge-top'
+            elif "期刊级别：" in line or "期刊级别:" in line:
+                content = line.split("：")[-1].split(":")[-1].strip()
+                badge_class = "badge"
+                if "顶级" in content:
+                    badge_class += " badge-top"
                 st.markdown(f'<div style="margin: 8px 0;"><strong>期刊级别：</strong><span class="{badge_class}">{content}</span></div>', unsafe_allow_html=True)
             
             else:
-                # 其他信息
                 highlighted = highlight_stats(line)
                 st.markdown(f'<div class="content-text">{highlighted}</div>', unsafe_allow_html=True)
         
         else:
-            # 其他章节内容
             highlighted = highlight_stats(line)
             st.markdown(f'<div class="content-text">{highlighted}</div>', unsafe_allow_html=True)
+    
+    return conclusion_text
 
-# 状态管理
 if 'articles' not in st.session_state:
     st.session_state.articles = []
 if 'query_done' not in st.session_state:
@@ -580,7 +591,13 @@ if st.session_state.query_done and st.session_state.articles:
             # 显示解读
             if st.session_state.get(interpretation_key):
                 st.markdown('<div class="literature-card">', unsafe_allow_html=True)
-                render_interpretation(st.session_state[interpretation_key])
+                
+                # 提取并显示一句话总结
+                conclusion = render_interpretation(st.session_state[interpretation_key])
+                if conclusion:
+                    st.markdown(f'<div class="section-header">一句话总结</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="conclusion-highlight">{conclusion}</div>', unsafe_allow_html=True)
+                
                 st.markdown('</div>', unsafe_allow_html=True)
                 
                 # 原文信息
