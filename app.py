@@ -607,7 +607,7 @@ if st.session_state.query_done and st.session_state.articles:
                         conclusion_text = line
                         break
                 
-                # 开始卡片
+                # 开始卡片 - 所有内容都放在卡片里
                 st.markdown('<div class="literature-card">', unsafe_allow_html=True)
                 
                 # 第一行：显示一句话总结
@@ -618,9 +618,7 @@ if st.session_state.query_done and st.session_state.articles:
                 # 然后渲染其他内容
                 render_interpretation(st.session_state[interpretation_key])
                 
-                st.markdown('</div>', unsafe_allow_html=True)
-                
-                # 原文信息
+                # 原文信息（放在卡片内）
                 st.markdown('<div class="meta-info">', unsafe_allow_html=True)
                 col1, col2, col3 = st.columns(3)
                 with col1:
@@ -632,7 +630,7 @@ if st.session_state.query_done and st.session_state.articles:
                         st.markdown(f"[PMC 原文链接](https://pubmed.ncbi.nlm.nih.gov/{article['pmid']}/)")
                 st.markdown('</div>', unsafe_allow_html=True)
                 
-                # 原文摘要
+                # 原文摘要（放在卡片内）
                 abstract_key = f"show_abstract_{article['pmid']}"
                 lang_key = f"lang_{article['pmid']}"
                 
@@ -668,6 +666,9 @@ if st.session_state.query_done and st.session_state.articles:
                                     st.session_state.translated_abstracts[translated_key] = f"翻译失败: {str(e)}"
                         
                         st.markdown(f'<div class="abstract-box">{st.session_state.translated_abstracts[translated_key]}</div>', unsafe_allow_html=True)
+                
+                # 关闭卡片容器
+                st.markdown('</div>', unsafe_allow_html=True)
 
 # 页脚
 st.markdown("---")
