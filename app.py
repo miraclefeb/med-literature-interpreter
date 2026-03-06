@@ -8,216 +8,239 @@ import re
 st.set_page_config(
     page_title="文献解读 PubMed 版",
     page_icon="📚",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# 自定义CSS样式
+# 高级学院派CSS样式
 st.markdown("""
 <style>
-    /* 文献标题放大两个字号，橙色 */
-    .stExpander summary p {
-        font-size: 1.2rem !important;
-        font-weight: 600 !important;
-        color: #E8762D !important;
+    /* 全局字体和行高 */
+    * {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
     }
     
-    /* 结构化解读标题缩小一个字号 */
-    h3 {
-        font-size: 0.95rem !important;
+    body {
+        line-height: 1.6em;
     }
     
-    /* 摘要区域样式 */
-    .abstract-box {
-        background-color: #f7f7f7;
-        padding: 15px;
+    /* 主标题样式 */
+    h1 {
+        font-weight: 600;
+        color: #1a1a1a;
+        letter-spacing: -0.02em;
+    }
+    
+    /* 搜索框样式 */
+    .stTextInput > div > div > input {
         border-radius: 8px;
-        border-left: 3px solid #E8762D;
-        margin-top: 10px;
+        border: 1.5px solid #e0e0e0;
+        padding: 12px 16px;
+        font-size: 0.95rem;
     }
     
-    /* 研究类型标签样式 */
-    .tag-rct {
-        display: inline-block;
-        padding: 4px 12px;
+    .stTextInput > div > div > input:focus {
+        border-color: #4A90E2;
+        box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+    }
+    
+    /* 卡片容器样式 */
+    .literature-card {
+        background: white;
         border-radius: 12px;
-        background-color: #FFF4E6;
-        color: #D97706;
-        font-weight: 600;
-        font-size: 0.85rem;
-        margin: 2px;
+        padding: 24px;
+        margin: 16px 0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        border: 1px solid #f0f0f0;
     }
     
-    .tag-meta {
+    /* 一句话结论高亮 */
+    .conclusion-highlight {
+        background: linear-gradient(135deg, #E8F5E9 0%, #E3F2FD 100%);
+        padding: 16px 20px;
+        border-radius: 8px;
+        border-left: 4px solid #4CAF50;
+        margin: 16px 0;
+        font-size: 1.05rem;
+        font-weight: 500;
+        color: #2c3e50;
+        line-height: 1.7;
+    }
+    
+    /* Badge样式 */
+    .badge {
         display: inline-block;
-        padding: 4px 12px;
-        border-radius: 12px;
-        background-color: #DBEAFE;
-        color: #1E40AF;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 0.8rem;
         font-weight: 600;
-        font-size: 0.85rem;
-        margin: 2px;
+        margin: 4px 6px 4px 0;
+        letter-spacing: 0.3px;
     }
     
-    .tag-cohort {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 12px;
-        background-color: #D1FAE5;
-        color: #047857;
-        font-weight: 600;
-        font-size: 0.85rem;
-        margin: 2px;
+    .badge-rct {
+        background: #FFF3E0;
+        color: #E65100;
     }
     
-    .tag-review {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 12px;
-        background-color: #E0E7FF;
-        color: #4338CA;
-        font-weight: 600;
-        font-size: 0.85rem;
-        margin: 2px;
+    .badge-meta {
+        background: #E3F2FD;
+        color: #1565C0;
     }
     
-    .tag-case {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 12px;
-        background-color: #FCE7F3;
-        color: #BE185D;
-        font-weight: 600;
-        font-size: 0.85rem;
-        margin: 2px;
+    .badge-cohort {
+        background: #E8F5E9;
+        color: #2E7D32;
     }
     
-    .tag-other {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 12px;
-        background-color: #F3F4F6;
-        color: #4B5563;
-        font-weight: 600;
-        font-size: 0.85rem;
-        margin: 2px;
+    .badge-review {
+        background: #F3E5F5;
+        color: #6A1B9A;
     }
     
-    /* 证据等级标签 */
-    .tag-high {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 12px;
-        background-color: #D1FAE5;
-        color: #047857;
-        font-weight: 600;
-        font-size: 0.85rem;
-        margin: 2px;
+    .badge-high {
+        background: #E8F5E9;
+        color: #2E7D32;
+        border: 1px solid #81C784;
     }
     
-    .tag-medium {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 12px;
-        background-color: #FEF3C7;
-        color: #B45309;
-        font-weight: 600;
-        font-size: 0.85rem;
-        margin: 2px;
+    .badge-medium {
+        background: #FFF8E1;
+        color: #F57C00;
+        border: 1px solid #FFB74D;
     }
     
-    .tag-low {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 12px;
-        background-color: #FEE2E2;
-        color: #B91C1C;
-        font-weight: 600;
-        font-size: 0.85rem;
-        margin: 2px;
+    .badge-low {
+        background: #FFEBEE;
+        color: #C62828;
+        border: 1px solid #E57373;
     }
     
-    /* 期刊级别标签 */
-    .tag-top {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 12px;
-        background-color: #FEF3C7;
-        color: #B45309;
-        font-weight: 600;
-        font-size: 0.85rem;
-        margin: 2px;
-    }
-    
-    .tag-high-impact {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 12px;
-        background-color: #E0E7FF;
-        color: #4338CA;
-        font-weight: 600;
-        font-size: 0.85rem;
-        margin: 2px;
-    }
-    
-    .tag-general {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 12px;
-        background-color: #F3F4F6;
-        color: #6B7280;
-        font-weight: 600;
-        font-size: 0.85rem;
-        margin: 2px;
-    }
-    
-    /* 内容缩进样式 */
-    .indent-content {
-        margin-left: 20px;
-        line-height: 1.8;
-    }
-    
-    /* 章节标题样式 */
-    .section-title {
+    .badge-top {
+        background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+        color: #fff;
         font-weight: 700;
-        color: #1F2937;
-        margin-top: 16px;
-        margin-bottom: 8px;
+    }
+    
+    /* 章节标题 */
+    .section-header {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: #5f6368;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        margin-top: 20px;
+        margin-bottom: 12px;
+        border-bottom: 2px solid #e8eaed;
+        padding-bottom: 6px;
+    }
+    
+    /* 内容文本 */
+    .content-text {
+        color: #3c4043;
+        font-size: 0.95rem;
+        line-height: 1.7;
+        margin-left: 8px;
+    }
+    
+    /* 统计数据高亮 */
+    .stat-highlight {
+        color: #1565C0;
+        font-weight: 700;
+    }
+    
+    /* 原文信息 */
+    .meta-info {
+        font-size: 0.85rem;
+        color: #80868b;
+        margin-top: 20px;
+        padding-top: 16px;
+        border-top: 1px solid #e8eaed;
+    }
+    
+    /* 侧边栏优化 */
+    section[data-testid="stSidebar"] {
+        background: #fafafa;
+    }
+    
+    section[data-testid="stSidebar"] > div {
+        padding-top: 2rem;
+    }
+    
+    /* 按钮优化 */
+    .stButton > button {
+        border-radius: 8px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+        transition: all 0.2s;
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    /* Expander优化 */
+    .stExpander {
+        border: none;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        border-radius: 8px;
+        margin: 8px 0;
+    }
+    
+    /* 摘要框 */
+    .abstract-box {
+        background: #f8f9fa;
+        padding: 16px 20px;
+        border-radius: 8px;
+        border-left: 3px solid #4A90E2;
+        margin-top: 12px;
+        font-size: 0.9rem;
+        line-height: 1.7;
+        color: #495057;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# 标题
-st.title("📚 文献解读 PubMed 版")
-st.markdown("**为临床医生提供结构化文献解读**")
+# 标题区域
+st.title("📚 医学文献循证解读")
+st.markdown('<p style="color: #80868b; font-size: 0.95rem; margin-top: -10px;">基于PubMed的临床决策支持工具</p>', unsafe_allow_html=True)
 
 # 侧边栏配置
 with st.sidebar:
-    st.header("⚙️ 配置")
+    st.markdown("### ⚙️ 配置")
+    
     deepseek_api_key = st.text_input(
         "DeepSeek API Key",
         type="password",
-        value=os.getenv("DEEPSEEK_API_KEY", "")
+        value=os.getenv("DEEPSEEK_API_KEY", ""),
+        help="在 https://platform.deepseek.com 获取"
     )
-    max_results = st.slider("最大文献数量", 1, 10, 5)
-    st.markdown("---")
-    st.markdown("### 📖 使用说明")
-    st.markdown("""
-    1. 输入医学问题（中文/英文均可）
-    2. 系统自动翻译并搜索PubMed
-    3. 生成结构化临床解读
     
-    **解读维度：**
-    - 一句话结论
-    - 证据标签
-    - 研究问题
-    - 关键结果
-    - 临床启示
-    - 适用患者
-    - 研究局限
-    """)
+    max_results = st.slider("检索文献数量", 1, 10, 5, help="建议5-10篇")
+    
+    st.markdown("---")
+    
+    with st.expander("📖 使用说明"):
+        st.markdown("""
+        **功能特点：**
+        - 🌐 中英文问题自动翻译
+        - 🔍 PubMed权威数据源
+        - 📊 7维度临床解读
+        - 🏷️ 证据等级标签化
+        
+        **使用步骤：**
+        1. 输入临床问题
+        2. 系统自动检索
+        3. 查看结构化解读
+        4. 切换中英文摘要
+        """)
+    
+    st.markdown("---")
+    st.markdown('<p style="font-size: 0.75rem; color: #999;">数据来源：PubMed<br>AI解读：DeepSeek</p>', unsafe_allow_html=True)
 
+# 工具函数
 def extract_text(element):
-    """安全提取XML元素文本"""
     if element is None:
         return ""
     text = element.text or ""
@@ -229,7 +252,6 @@ def extract_text(element):
     return text.strip()
 
 def call_deepseek(prompt: str, api_key: str) -> str:
-    """调用DeepSeek API"""
     try:
         response = requests.post(
             "https://api.deepseek.com/v1/chat/completions",
@@ -254,76 +276,94 @@ def call_deepseek(prompt: str, api_key: str) -> str:
         raise Exception(f"API调用失败: {str(e)}")
 
 def translate_abstract(abstract: str, api_key: str) -> str:
-    """翻译摘要为中文"""
     try:
         prompt = f"请将以下英文医学摘要翻译成中文，保持专业术语准确：\n\n{abstract}"
         return call_deepseek(prompt, api_key)
     except Exception as e:
         return f"翻译失败: {str(e)}"
 
-def format_interpretation(text: str) -> str:
-    """格式化解读文本，添加标签和缩进"""
-    lines = text.split('\n')
-    formatted_lines = []
+def highlight_stats(text: str) -> str:
+    """高亮统计数据"""
+    # 高亮 HR, OR, RR, P值等
+    text = re.sub(r'(HR|OR|RR|P)\s*[=<>]\s*[\d.]+', r'<span class="stat-highlight">\g<0></span>', text, flags=re.IGNORECASE)
+    # 高亮百分比
+    text = re.sub(r'\d+\.?\d*%', r'<span class="stat-highlight">\g<0></span>', text)
+    # 高亮 n=数字
+    text = re.sub(r'n\s*=\s*\d+', r'<span class="stat-highlight">\g<0></span>', text, flags=re.IGNORECASE)
+    return text
+
+def render_interpretation(interpretation: str):
+    """渲染解读内容"""
+    lines = interpretation.split('\n')
     current_section = None
     
     for line in lines:
         line = line.strip()
         if not line:
-            formatted_lines.append("")
             continue
         
-        # 检测章节标题
+        # 检测章节
         if line.startswith('【') and line.endswith('】'):
-            formatted_lines.append(f'<div class="section-title">{line}</div>')
-            current_section = line
-        # 处理证据标签部分
-        elif current_section == '【证据标签】':
-            # 研究类型标签
+            section_name = line[1:-1]
+            
+            # 一句话结论特殊处理
+            if section_name == "一句话结论":
+                current_section = "conclusion"
+                continue
+            else:
+                st.markdown(f'<div class="section-header">{section_name}</div>', unsafe_allow_html=True)
+                current_section = section_name
+        
+        # 渲染内容
+        elif current_section == "conclusion":
+            # 下一行是结论内容
+            st.markdown(f'<div class="conclusion-highlight">{line}</div>', unsafe_allow_html=True)
+            current_section = None
+        
+        elif current_section == "证据标签":
+            # 解析标签
             if '研究类型：' in line or '研究类型:' in line:
                 content = line.split('：')[-1].split(':')[-1].strip()
-                tag_class = 'tag-other'
+                badge_class = 'badge'
                 if 'RCT' in content.upper():
-                    tag_class = 'tag-rct'
-                elif 'Meta' in content or 'meta' in content:
-                    tag_class = 'tag-meta'
-                elif 'Cohort' in content or 'cohort' in content or '队列' in content:
-                    tag_class = 'tag-cohort'
-                elif 'Review' in content or 'review' in content or '综述' in content:
-                    tag_class = 'tag-review'
-                elif 'Case' in content or 'case' in content or '病例' in content:
-                    tag_class = 'tag-case'
-                formatted_lines.append(f'<div class="indent-content">研究类型：<span class="{tag_class}">{content}</span></div>')
-            # 证据等级标签
+                    badge_class += ' badge-rct'
+                elif 'Meta' in content:
+                    badge_class += ' badge-meta'
+                elif 'Cohort' in content or '队列' in content:
+                    badge_class += ' badge-cohort'
+                elif 'Review' in content or '综述' in content:
+                    badge_class += ' badge-review'
+                st.markdown(f'<span class="{badge_class}">{content}</span>', unsafe_allow_html=True)
+            
             elif '证据等级：' in line or '证据等级:' in line:
                 content = line.split('：')[-1].split(':')[-1].strip()
-                tag_class = 'tag-medium'
+                badge_class = 'badge'
                 if '高' in content:
-                    tag_class = 'tag-high'
+                    badge_class += ' badge-high'
+                elif '中' in content:
+                    badge_class += ' badge-medium'
                 elif '低' in content:
-                    tag_class = 'tag-low'
-                formatted_lines.append(f'<div class="indent-content">证据等级：<span class="{tag_class}">{content}</span></div>')
-            # 期刊级别标签
+                    badge_class += ' badge-low'
+                st.markdown(f'<span class="{badge_class}">证据等级: {content}</span>', unsafe_allow_html=True)
+            
             elif '期刊级别：' in line or '期刊级别:' in line:
                 content = line.split('：')[-1].split(':')[-1].strip()
-                tag_class = 'tag-general'
+                badge_class = 'badge'
                 if '顶级' in content:
-                    tag_class = 'tag-top'
-                elif '高影响力' in content:
-                    tag_class = 'tag-high-impact'
-                formatted_lines.append(f'<div class="indent-content">期刊级别：<span class="{tag_class}">{content}</span></div>')
-            # 其他内容
+                    badge_class += ' badge-top'
+                st.markdown(f'<span class="{badge_class}">{content}期刊</span>', unsafe_allow_html=True)
+            
             else:
-                formatted_lines.append(f'<div class="indent-content">{line}</div>')
-        # 其他章节内容缩进
-        elif current_section:
-            formatted_lines.append(f'<div class="indent-content">{line}</div>')
+                # 样本量等其他信息
+                highlighted = highlight_stats(line)
+                st.markdown(f'<div class="content-text">{highlighted}</div>', unsafe_allow_html=True)
+        
         else:
-            formatted_lines.append(line)
-    
-    return '\n'.join(formatted_lines)
+            # 其他章节内容
+            highlighted = highlight_stats(line)
+            st.markdown(f'<div class="content-text">{highlighted}</div>', unsafe_allow_html=True)
 
-# 使用session_state保存结果，防止刷新丢失
+# 状态管理
 if 'articles' not in st.session_state:
     st.session_state.articles = []
 if 'query_done' not in st.session_state:
@@ -335,18 +375,25 @@ if 'abstract_lang' not in st.session_state:
 if 'translated_abstracts' not in st.session_state:
     st.session_state.translated_abstracts = {}
 
-# 主界面
-query = st.text_input(
-    "🔍 输入医学问题（中文/英文均可）",
-    placeholder="例如：SGLT2抑制剂在心血管疾病中的作用",
-    key="query_input"
-)
+# 主界面 - 搜索区域
+col_search, col_btn = st.columns([4, 1])
 
-if st.button("🚀 开始解读", type="primary"):
+with col_search:
+    query = st.text_input(
+        "🔍 输入临床问题",
+        placeholder="例如：SGLT2抑制剂在慢性肾病中的疗效",
+        label_visibility="collapsed",
+        key="query_input"
+    )
+
+with col_btn:
+    search_button = st.button("🚀 开始检索", type="primary", use_container_width=True)
+
+if search_button:
     if not query:
-        st.warning("请输入问题")
+        st.warning("⚠️ 请输入临床问题")
     elif not deepseek_api_key:
-        st.error("请在侧边栏配置 DeepSeek API Key")
+        st.error("❌ 请在侧边栏配置 DeepSeek API Key")
     else:
         # 清空之前的结果
         st.session_state.articles = []
@@ -356,21 +403,21 @@ if st.button("🚀 开始解读", type="primary"):
         st.session_state.translated_abstracts = {}
         
         try:
-            # 1. 翻译问题为英文（如果是中文）
-            with st.spinner("正在处理问题..."):
+            # 翻译
+            with st.status("🌐 正在处理问题...", expanded=True) as status:
                 has_chinese = any('\u4e00' <= char <= '\u9fff' for char in query)
                 
                 if has_chinese:
-                    st.info("🌐 检测到中文问题，正在翻译为英文...")
+                    st.write("检测到中文问题，正在翻译...")
                     translate_prompt = f"你是医学翻译专家。将用户的中文医学问题翻译成精确的英文医学术语，用于PubMed检索。只返回英文翻译，不要解释。\n\n翻译：{query}"
                     english_query = call_deepseek(translate_prompt, deepseek_api_key)
-                    st.success(f"✅ 翻译结果: {english_query}")
+                    st.write(f"✅ 翻译结果: {english_query}")
                 else:
                     english_query = query
-                    st.info(f"🔍 搜索关键词: {english_query}")
-            
-            # 2. 搜索PubMed
-            with st.spinner("正在搜索文献..."):
+                    st.write(f"✅ 搜索关键词: {english_query}")
+                
+                # 搜索PubMed
+                st.write("正在检索PubMed数据库...")
                 search_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
                 search_params = {
                     "db": "pubmed",
@@ -385,67 +432,81 @@ if st.button("🚀 开始解读", type="primary"):
                 pmids = search_data.get("esearchresult", {}).get("idlist", [])
                 
                 if not pmids:
-                    st.warning("未找到相关文献")
-                else:
-                    st.success(f"找到 {len(pmids)} 篇文献")
-                    
-                    # 3. 获取文献详情
-                    fetch_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
-                    fetch_params = {
-                        "db": "pubmed",
-                        "id": ",".join(pmids),
-                        "retmode": "xml"
-                    }
-                    fetch_response = requests.get(fetch_url, params=fetch_params, timeout=10)
-                    
-                    # 4. 解析XML
-                    root = ET.fromstring(fetch_response.content)
-                    
-                    articles = []
-                    for article in root.findall(".//PubmedArticle"):
-                        try:
-                            title_elem = article.find(".//ArticleTitle")
-                            title = extract_text(title_elem) if title_elem is not None else "无标题"
-                            
-                            abstract_elem = article.find(".//AbstractText")
-                            abstract = extract_text(abstract_elem) if abstract_elem is not None else "无摘要"
-                            
-                            journal_elem = article.find(".//Journal/Title")
-                            journal = extract_text(journal_elem) if journal_elem is not None else "未知期刊"
-                            
-                            year_elem = article.find(".//PubDate/Year")
-                            year = extract_text(year_elem) if year_elem is not None else "未知年份"
-                            
-                            pmid_elem = article.find(".//PMID")
-                            pmid = extract_text(pmid_elem) if pmid_elem is not None else ""
-                            
-                            articles.append({
-                                "title": str(title),
-                                "abstract": str(abstract),
-                                "journal": str(journal),
-                                "year": str(year),
-                                "pmid": str(pmid)
-                            })
-                        except Exception as e:
-                            continue
-                    
-                    # 保存到session_state
-                    st.session_state.articles = articles
-                    st.session_state.query_done = True
+                    status.update(label="❌ 未找到相关文献", state="error")
+                    st.stop()
+                
+                st.write(f"✅ 找到 {len(pmids)} 篇相关文献")
+                
+                # 获取文献详情
+                st.write("正在获取文献详情...")
+                fetch_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
+                fetch_params = {
+                    "db": "pubmed",
+                    "id": ",".join(pmids),
+                    "retmode": "xml"
+                }
+                fetch_response = requests.get(fetch_url, params=fetch_params, timeout=10)
+                
+                # 解析XML
+                root = ET.fromstring(fetch_response.content)
+                
+                articles = []
+                for article in root.findall(".//PubmedArticle"):
+                    try:
+                        title_elem = article.find(".//ArticleTitle")
+                        title = extract_text(title_elem) if title_elem is not None else "无标题"
+                        
+                        abstract_elem = article.find(".//AbstractText")
+                        abstract = extract_text(abstract_elem) if abstract_elem is not None else "无摘要"
+                        
+                        journal_elem = article.find(".//Journal/Title")
+                        journal = extract_text(journal_elem) if journal_elem is not None else "未知期刊"
+                        
+                        year_elem = article.find(".//PubDate/Year")
+                        year = extract_text(year_elem) if year_elem is not None else "未知年份"
+                        
+                        pmid_elem = article.find(".//PMID")
+                        pmid = extract_text(pmid_elem) if pmid_elem is not None else ""
+                        
+                        articles.append({
+                            "title": str(title),
+                            "abstract": str(abstract),
+                            "journal": str(journal),
+                            "year": str(year),
+                            "pmid": str(pmid)
+                        })
+                    except Exception as e:
+                        continue
+                
+                st.session_state.articles = articles
+                st.session_state.query_done = True
+                
+                status.update(label="✅ 检索完成！", state="complete")
                         
         except Exception as e:
-            st.error(f"发生错误: {str(e)}")
+            st.error(f"❌ 发生错误: {str(e)}")
 
-# 显示结果（从session_state读取，不会因为刷新丢失）
+# 显示结果
 if st.session_state.query_done and st.session_state.articles:
-    for idx, article in enumerate(st.session_state.articles, 1):
-        with st.expander(f"📄 文献 {idx}: {article['title'][:80]}...", expanded=(idx==1)):
-            # 检查是否已经生成过解读
+    st.markdown("---")
+    st.markdown(f"### 📑 检索结果 ({len(st.session_state.articles)} 篇文献)")
+    
+    # 使用tabs展示多篇文献
+    if len(st.session_state.articles) > 1:
+        tabs = st.tabs([f"文献 {i+1}" for i in range(len(st.session_state.articles))])
+    else:
+        tabs = [st.container()]
+    
+    for idx, (tab, article) in enumerate(zip(tabs, st.session_state.articles), 1):
+        with tab:
+            # 文献标题
+            st.markdown(f'<h3 style="color: #1a1a1a; margin-bottom: 8px;">{article["title"]}</h3>', unsafe_allow_html=True)
+            
+            # 生成解读
             interpretation_key = f"interpretation_{article['pmid']}"
             
             if interpretation_key not in st.session_state:
-                # 第一次生成解读
-                with st.spinner("正在生成解读..."):
+                with st.spinner("🤖 AI正在生成临床解读..."):
                     prompt = f"""你是一名医学循证研究助手，需要帮助临床医生快速理解 PubMed 文献。
 
 请基于提供的文献标题和摘要，生成一个"结构化临床解读"，要求医生在30秒内能够理解该研究的核心价值。
@@ -506,30 +567,28 @@ if st.session_state.query_done and st.session_state.articles:
                         st.error(f"生成解读失败: {str(e)}")
                         st.session_state[interpretation_key] = None
             
-            # 显示解读（从session_state读取）
+            # 显示解读
             if st.session_state.get(interpretation_key):
-                st.markdown("### 结构化临床解读")
-                # 格式化并显示
-                formatted_text = format_interpretation(st.session_state[interpretation_key])
-                st.markdown(formatted_text, unsafe_allow_html=True)
+                st.markdown('<div class="literature-card">', unsafe_allow_html=True)
+                render_interpretation(st.session_state[interpretation_key])
+                st.markdown('</div>', unsafe_allow_html=True)
                 
-                # 显示原文信息
-                st.markdown("---")
-                st.markdown("### 📖 原文信息")
-                col1, col2 = st.columns(2)
+                # 原文信息
+                st.markdown('<div class="meta-info">', unsafe_allow_html=True)
+                col1, col2, col3 = st.columns(3)
                 with col1:
                     st.markdown(f"**期刊：** {article['journal']}")
-                    st.markdown(f"**年份：** {article['year']}")
                 with col2:
-                    st.markdown(f"**PMID：** {article['pmid']}")
+                    st.markdown(f"**年份：** {article['year']}")
+                with col3:
                     if article['pmid']:
                         st.markdown(f"[PMC 原文链接](https://pubmed.ncbi.nlm.nih.gov/{article['pmid']}/)")
+                st.markdown('</div>', unsafe_allow_html=True)
                 
-                # 显示/隐藏摘要按钮
+                # 原文摘要
                 abstract_key = f"show_abstract_{article['pmid']}"
                 lang_key = f"lang_{article['pmid']}"
                 
-                # 初始化语言状态（默认中文）
                 if lang_key not in st.session_state.abstract_lang:
                     st.session_state.abstract_lang[lang_key] = "中"
                 
@@ -541,22 +600,17 @@ if st.session_state.query_done and st.session_state.articles:
                 
                 with col_btn2:
                     if st.session_state.show_abstract.get(abstract_key, False):
-                        # 单按钮切换
                         current_lang = st.session_state.abstract_lang[lang_key]
                         if st.button(f"🌐 {current_lang}", key=f"lang_{article['pmid']}", help="点击切换中英文"):
-                            # 切换语言
                             st.session_state.abstract_lang[lang_key] = "EN" if current_lang == "中" else "中"
                             st.rerun()
                 
-                # 显示摘要（如果按钮被点击）
                 if st.session_state.show_abstract.get(abstract_key, False):
                     current_lang = st.session_state.abstract_lang[lang_key]
                     
                     if current_lang == "EN":
-                        # 显示英文原文
                         st.markdown(f'<div class="abstract-box">{article["abstract"]}</div>', unsafe_allow_html=True)
                     else:
-                        # 显示中文翻译
                         translated_key = f"translated_{article['pmid']}"
                         if translated_key not in st.session_state.translated_abstracts:
                             with st.spinner("正在翻译..."):
@@ -571,8 +625,7 @@ if st.session_state.query_done and st.session_state.articles:
 # 页脚
 st.markdown("---")
 st.markdown("""
-<div style='text-align: center; color: #666; font-size: 0.9em;'>
-    <p>数据来源：PubMed | AI解读：DeepSeek</p>
-    <p>⚠️ 仅供参考，不构成医疗建议</p>
+<div style='text-align: center; color: #999; font-size: 0.8rem; padding: 20px 0;'>
+    <p>⚠️ 本工具仅供临床参考，不构成医疗建议</p>
 </div>
 """, unsafe_allow_html=True)
