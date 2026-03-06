@@ -66,15 +66,15 @@ if st.button("🚀 开始解读", type="primary"):
     elif not deepseek_api_key:
         st.error("请在侧边栏配置 DeepSeek API Key")
     else:
-        # 初始化AI客户端
-        client = OpenAI(
-            api_key=deepseek_api_key,
-            base_url="https://api.deepseek.com"
-        )
-        
-        # 1. 翻译问题为英文（如果是中文）
-        with st.spinner("正在处理问题..."):
-            try:
+        try:
+            # 初始化AI客户端（在这里初始化，确保有API key）
+            client = OpenAI(
+                api_key=deepseek_api_key,
+                base_url="https://api.deepseek.com"
+            )
+            
+            # 1. 翻译问题为英文（如果是中文）
+            with st.spinner("正在处理问题..."):
                 # 检测是否包含中文
                 has_chinese = any('\u4e00' <= char <= '\u9fff' for char in query)
                 
@@ -94,14 +94,9 @@ if st.button("🚀 开始解读", type="primary"):
                 else:
                     english_query = query
                     st.info(f"🔍 搜索关键词: {english_query}")
-                
-            except Exception as e:
-                st.error(f"翻译失败: {str(e)}")
-                english_query = query
-        
-        # 2. 搜索PubMed
-        with st.spinner("正在搜索文献..."):
-            try:
+            
+            # 2. 搜索PubMed
+            with st.spinner("正在搜索文献..."):
                 search_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
                 search_params = {
                     "db": "pubmed",
@@ -243,11 +238,11 @@ if st.button("🚀 开始解读", type="primary"):
                                         
                                     except Exception as e:
                                         st.error(f"生成解读失败: {str(e)}")
-                            
-            except Exception as e:
-                st.error(f"搜索失败: {str(e)}")
-                import traceback
-                st.code(traceback.format_exc())
+                        
+        except Exception as e:
+            st.error(f"发生错误: {str(e)}")
+            import traceback
+            st.code(traceback.format_exc())
 
 # 页脚
 st.markdown("---")
