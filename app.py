@@ -1,6 +1,5 @@
 import streamlit as st
 import requests
-from openai import OpenAI
 import os
 import xml.etree.ElementTree as ET
 
@@ -46,13 +45,37 @@ def extract_text(element):
     if element is None:
         return ""
     text = element.text or ""
-    # 处理子元素
     for child in element:
         if child.text:
             text += child.text
         if child.tail:
             text += child.tail
     return text.strip()
+
+def call_deepseek(prompt: str, api_key: str) -> str:
+    """调用DeepSeek API"""
+    try:
+        response = requests.post(
+            "https://api.deepseek.com/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "deepseek-chat",
+                "messages": [
+                    {"role": "system", "content": "你是一名专业的医学研究解读助手。"},
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": 0.3,
+                "max_tokens": 2000
+            },
+            timeout=30
+        )
+        response.raise_for_status()
+        return response.json()["choices"][0]["message"]["content"]
+    except Exception as e:
+        raise Exception(f"API调用失败: {str(e)}")
 
 # 主界面
 query = st.text_input(
@@ -67,29 +90,14 @@ if st.button("🚀 开始解读", type="primary"):
         st.error("请在侧边栏配置 DeepSeek API Key")
     else:
         try:
-            # 初始化AI客户端（在这里初始化，确保有API key）
-            client = OpenAI(
-                api_key=deepseek_api_key,
-                base_url="https://api.deepseek.com"
-            )
-            
             # 1. 翻译问题为英文（如果是中文）
             with st.spinner("正在处理问题..."):
-                # 检测是否包含中文
                 has_chinese = any('\u4e00' <= char <= '\u9fff' for char in query)
                 
                 if has_chinese:
                     st.info("🌐 检测到中文问题，正在翻译为英文...")
-                    translate_response = client.chat.completions.create(
-                        model="deepseek-chat",
-                        messages=[
-                            {"role": "system", "content": "你是一个医学翻译助手。请将用户的中文医学问题翻译成准确的英文医学术语，用于PubMed搜索。只返回翻译结果，不要解释。"},
-                            {"role": "user", "content": f"翻译这个医学问题：{query}"}
-                        ],
-                        temperature=0.3,
-                        max_tokens=200
-                    )
-                    english_query = translate_response.choices[0].message.content.strip()
+                    translate_prompt = f"你是医学翻译专家。将用户的中文医学问题翻译成精确的英文医学术语，用于PubMed检索。只返回英文翻译，不要解释。\n\n翻译：{query}"
+                    english_query = call_deepseek(translate_prompt, deepseek_api_key)
                     st.success(f"✅ 翻译结果: {english_query}")
                 else:
                     english_query = query
@@ -111,7 +119,7 @@ if st.button("🚀 开始解读", type="primary"):
                 pmids = search_data.get("esearchresult", {}).get("idlist", [])
                 
                 if not pmids:
-                    st.warning("未找到相关文献，请尝试：\n- 使用更通用的医学术语\n- 简化问题描述\n- 使用英文关键词")
+                    st.warning("未找到相关文献")
                 else:
                     st.success(f"找到 {len(pmids)} 篇文献")
                     
@@ -130,7 +138,6 @@ if st.button("🚀 开始解读", type="primary"):
                     articles = []
                     for article in root.findall(".//PubmedArticle"):
                         try:
-                            # 安全提取各字段
                             title_elem = article.find(".//ArticleTitle")
                             title = extract_text(title_elem) if title_elem is not None else "无标题"
                             
@@ -146,7 +153,6 @@ if st.button("🚀 开始解读", type="primary"):
                             pmid_elem = article.find(".//PMID")
                             pmid = extract_text(pmid_elem) if pmid_elem is not None else ""
                             
-                            # 确保所有字段都是字符串
                             articles.append({
                                 "title": str(title),
                                 "abstract": str(abstract),
@@ -155,18 +161,13 @@ if st.button("🚀 开始解读", type="primary"):
                                 "pmid": str(pmid)
                             })
                         except Exception as e:
-                            st.warning(f"解析文献时出错: {str(e)}")
                             continue
                     
-                    if not articles:
-                        st.error("文献解析失败，请稍后重试")
-                    else:
-                        # 5. 为每篇文献生成解读
-                        for idx, article in enumerate(articles, 1):
-                            with st.expander(f"📄 文献 {idx}: {article['title'][:80]}...", expanded=(idx==1)):
-                                # 生成解读
-                                with st.spinner("正在生成解读..."):
-                                    prompt = f"""你是一名医学研究解读助手，请基于以下PubMed文献信息，为临床医生生成结构化解读。
+                    # 5. 为每篇文献生成解读
+                    for idx, article in enumerate(articles, 1):
+                        with st.expander(f"📄 文献 {idx}: {article['title'][:80]}...", expanded=(idx==1)):
+                            with st.spinner("正在生成解读..."):
+                                prompt = f"""你是一名医学研究解读助手，请基于以下PubMed文献信息，为临床医生生成结构化解读。
 
 要求：
 1. 用中文输出
@@ -203,46 +204,34 @@ if st.button("🚀 开始解读", type="primary"):
 期刊：{article['journal']}
 年份：{article['year']}
 """
+                                
+                                try:
+                                    interpretation = call_deepseek(prompt, deepseek_api_key)
                                     
-                                    try:
-                                        response = client.chat.completions.create(
-                                            model="deepseek-chat",
-                                            messages=[
-                                                {"role": "system", "content": "你是一名专业的医学研究解读助手。"},
-                                                {"role": "user", "content": prompt}
-                                            ],
-                                            temperature=0.3,
-                                            max_tokens=2000
-                                        )
-                                        
-                                        interpretation = response.choices[0].message.content
-                                        
-                                        # 显示解读
-                                        st.markdown("### 📊 结构化解读")
-                                        st.markdown(interpretation)
-                                        
-                                        # 显示原文信息
-                                        st.markdown("---")
-                                        st.markdown("### 📖 原文信息")
-                                        col1, col2 = st.columns(2)
-                                        with col1:
-                                            st.markdown(f"**期刊：** {article['journal']}")
-                                            st.markdown(f"**年份：** {article['year']}")
-                                        with col2:
-                                            st.markdown(f"**PMID：** {article['pmid']}")
-                                            if article['pmid']:
-                                                st.markdown(f"[查看原文](https://pubmed.ncbi.nlm.nih.gov/{article['pmid']}/)")
-                                        
-                                        with st.expander("查看原文摘要"):
-                                            st.markdown(article['abstract'])
-                                        
-                                    except Exception as e:
-                                        st.error(f"生成解读失败: {str(e)}")
+                                    # 显示解读
+                                    st.markdown("### 📊 结构化解读")
+                                    st.markdown(interpretation)
+                                    
+                                    # 显示原文信息
+                                    st.markdown("---")
+                                    st.markdown("### 📖 原文信息")
+                                    col1, col2 = st.columns(2)
+                                    with col1:
+                                        st.markdown(f"**期刊：** {article['journal']}")
+                                        st.markdown(f"**年份：** {article['year']}")
+                                    with col2:
+                                        st.markdown(f"**PMID：** {article['pmid']}")
+                                        if article['pmid']:
+                                            st.markdown(f"[查看原文](https://pubmed.ncbi.nlm.nih.gov/{article['pmid']}/)")
+                                    
+                                    with st.expander("查看原文摘要"):
+                                        st.markdown(article['abstract'])
+                                    
+                                except Exception as e:
+                                    st.error(f"生成解读失败: {str(e)}")
                         
         except Exception as e:
             st.error(f"发生错误: {str(e)}")
-            import traceback
-            st.code(traceback.format_exc())
 
 # 页脚
 st.markdown("---")
