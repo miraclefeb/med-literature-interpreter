@@ -516,7 +516,7 @@ if st.session_state.query_done and st.session_state.articles:
     if len(st.session_state.articles) > 1:
         tabs = st.tabs([f"文献 {i+1}" for i in range(len(st.session_state.articles))])
     else:
-        tabs = [st.container()]
+        tabs = [st.container(border=False)]
     
     for idx, (tab, article) in enumerate(zip(tabs, st.session_state.articles), 1):
         with tab:
