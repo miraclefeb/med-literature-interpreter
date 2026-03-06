@@ -182,16 +182,6 @@ st.markdown("""
         margin-top: 16px;
         margin-bottom: 8px;
     }
-    
-    /* Tab样式 */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-    }
-    
-    .stTabs [data-baseweb="tab"] {
-        padding: 8px 16px;
-        font-size: 0.9rem;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -339,6 +329,8 @@ if 'query_done' not in st.session_state:
     st.session_state.query_done = False
 if 'show_abstract' not in st.session_state:
     st.session_state.show_abstract = {}
+if 'abstract_lang' not in st.session_state:
+    st.session_state.abstract_lang = {}
 if 'translated_abstracts' not in st.session_state:
     st.session_state.translated_abstracts = {}
 
@@ -359,6 +351,7 @@ if st.button("🚀 开始解读", type="primary"):
         st.session_state.articles = []
         st.session_state.query_done = False
         st.session_state.show_abstract = {}
+        st.session_state.abstract_lang = {}
         st.session_state.translated_abstracts = {}
         
         try:
@@ -533,20 +526,34 @@ if st.session_state.query_done and st.session_state.articles:
                 
                 # 显示/隐藏摘要按钮
                 abstract_key = f"show_abstract_{article['pmid']}"
-                if st.button(f"{'隐藏' if st.session_state.show_abstract.get(abstract_key, False) else '查看'}原文摘要", key=f"btn_{article['pmid']}"):
-                    st.session_state.show_abstract[abstract_key] = not st.session_state.show_abstract.get(abstract_key, False)
-                    st.rerun()
+                lang_key = f"lang_{article['pmid']}"
+                
+                # 初始化语言状态（默认英文）
+                if lang_key not in st.session_state.abstract_lang:
+                    st.session_state.abstract_lang[lang_key] = "英"
+                
+                col_btn1, col_btn2 = st.columns([1, 5])
+                with col_btn1:
+                    if st.button(f"{'隐藏' if st.session_state.show_abstract.get(abstract_key, False) else '查看'}原文摘要", key=f"btn_{article['pmid']}"):
+                        st.session_state.show_abstract[abstract_key] = not st.session_state.show_abstract.get(abstract_key, False)
+                        st.rerun()
+                
+                with col_btn2:
+                    if st.session_state.show_abstract.get(abstract_key, False):
+                        if st.button(f"切换：{st.session_state.abstract_lang[lang_key]}", key=f"lang_btn_{article['pmid']}"):
+                            # 切换语言
+                            st.session_state.abstract_lang[lang_key] = "中" if st.session_state.abstract_lang[lang_key] == "英" else "英"
+                            st.rerun()
                 
                 # 显示摘要（如果按钮被点击）
                 if st.session_state.show_abstract.get(abstract_key, False):
-                    # 使用Tab切换中英文
-                    tab1, tab2 = st.tabs(["📄 英文原文", "🌐 中文翻译"])
+                    current_lang = st.session_state.abstract_lang[lang_key]
                     
-                    with tab1:
+                    if current_lang == "英":
+                        # 显示英文原文
                         st.markdown(f'<div class="abstract-box">{article["abstract"]}</div>', unsafe_allow_html=True)
-                    
-                    with tab2:
-                        # 检查是否已翻译
+                    else:
+                        # 显示中文翻译
                         translated_key = f"translated_{article['pmid']}"
                         if translated_key not in st.session_state.translated_abstracts:
                             with st.spinner("正在翻译..."):
