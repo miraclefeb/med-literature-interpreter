@@ -516,19 +516,18 @@ if st.session_state.query_done and st.session_state.articles:
     if len(st.session_state.articles) > 1:
         tabs = st.tabs([f"文献 {i+1}" for i in range(len(st.session_state.articles))])
     else:
-        tabs = [st.container()]
+        tabs = None  # 不使用container
     
-    for idx, (tab, article) in enumerate(zip(tabs, st.session_state.articles), 1):
-        with tab:
-            # 文献标题
-            st.markdown(f'<h3 style="color: #1a1a1a; margin-bottom: 16px;">{article["title"]}</h3>', unsafe_allow_html=True)
-            
-            # 生成解读
-            interpretation_key = f"interpretation_{article['pmid']}"
-            
-            if interpretation_key not in st.session_state:
-                with st.spinner("🤖 AI正在生成临床解读..."):
-                    prompt = f"""你是一名医学循证研究助手，需要帮助临床医生快速理解 PubMed 文献。
+    for idx, article in enumerate(st.session_state.articles, 1):
+        # 文献标题
+        st.markdown(f'<h3 style="color: #1a1a1a; margin-bottom: 16px;">{article["title"]}</h3>', unsafe_allow_html=True)
+        
+        # 生成解读
+        interpretation_key = f"interpretation_{article['pmid']}"
+        
+        if interpretation_key not in st.session_state:
+            with st.spinner("🤖 AI正在生成临床解读..."):
+                prompt = f"""你是一名医学循证研究助手，需要帮助临床医生快速理解 PubMed 文献。
 
 请基于提供的文献标题和摘要，生成一个"结构化临床解读"，要求医生在30秒内能够理解该研究的核心价值。
 
@@ -580,84 +579,84 @@ if st.session_state.query_done and st.session_state.articles:
 期刊：{article['journal']}
 年份：{article['year']}
 """
-                    
-                    try:
-                        interpretation = call_deepseek(prompt, deepseek_api_key)
-                        st.session_state[interpretation_key] = interpretation
-                    except Exception as e:
-                        st.error(f"生成解读失败: {str(e)}")
-                        st.session_state[interpretation_key] = None
-            
-            # 显示解读
-            if st.session_state.get(interpretation_key):
-                # 先提取一句话总结
-                lines = st.session_state[interpretation_key].split('\n')
-                conclusion_text = None
-                current_section = None
-                for line in lines:
-                    line = line.strip()
-                    if not line:
+                
+                try:
+                    interpretation = call_deepseek(prompt, deepseek_api_key)
+                    st.session_state[interpretation_key] = interpretation
+                except Exception as e:
+                    st.error(f"生成解读失败: {str(e)}")
+                    st.session_state[interpretation_key] = None
+        
+        # 显示解读
+        if st.session_state.get(interpretation_key):
+            # 先提取一句话总结
+            lines = st.session_state[interpretation_key].split('\n')
+            conclusion_text = None
+            current_section = None
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                if line.startswith('【') and line.endswith('】'):
+                    section_name = line[1:-1]
+                    if section_name == "一句话结论":
+                        current_section = "conclusion"
                         continue
-                    if line.startswith('【') and line.endswith('】'):
-                        section_name = line[1:-1]
-                        if section_name == "一句话结论":
-                            current_section = "conclusion"
-                            continue
-                    elif current_section == "conclusion":
-                        conclusion_text = line
-                        break
-                
-                # 开始卡片
-                st.markdown('<div class="literature-card">', unsafe_allow_html=True)
-                
-                # 第一行：显示一句话总结
-                if conclusion_text:
-                    st.markdown(f'<div class="section-header">一句话总结</div>', unsafe_allow_html=True)
-                    st.markdown(f'<div class="conclusion-highlight">{conclusion_text}</div>', unsafe_allow_html=True)
-                
-                # 然后渲染其他内容
-                render_interpretation(st.session_state[interpretation_key])
-                
-                st.markdown('</div>', unsafe_allow_html=True)
-                
-                # 原文信息
-                st.markdown('<div class="meta-info">', unsafe_allow_html=True)
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.markdown(f"**期刊：** {article['journal']}")
-                with col2:
-                    st.markdown(f"**年份：** {article['year']}")
-                with col3:
-                    if article['pmid']:
-                        st.markdown(f"[PMC 原文链接](https://pubmed.ncbi.nlm.nih.gov/{article['pmid']}/)")
-                st.markdown('</div>', unsafe_allow_html=True)
-                
-                # 原文摘要
-                abstract_key = f"show_abstract_{article['pmid']}"
-                lang_key = f"lang_{article['pmid']}"
-                
-                if lang_key not in st.session_state.abstract_lang:
-                    st.session_state.abstract_lang[lang_key] = "中"
-                
-                col_btn1, col_btn2 = st.columns([1, 5])
-                with col_btn1:
-                    if st.button(f"{'隐藏' if st.session_state.show_abstract.get(abstract_key, False) else '查看'}原文摘要", key=f"btn_{article['pmid']}"):
-                        st.session_state.show_abstract[abstract_key] = not st.session_state.show_abstract.get(abstract_key, False)
-                        st.rerun()
-                
-                with col_btn2:
-                    if st.session_state.show_abstract.get(abstract_key, False):
-                        current_lang = st.session_state.abstract_lang[lang_key]
-                        if st.button(f"🌐 {current_lang}", key=f"lang_{article['pmid']}", help="点击切换中英文"):
-                            st.session_state.abstract_lang[lang_key] = "EN" if current_lang == "中" else "中"
-                            st.rerun()
-                
+                elif current_section == "conclusion":
+                    conclusion_text = line
+                    break
+            
+            # 开始卡片
+            st.markdown('<div class="literature-card">', unsafe_allow_html=True)
+            
+            # 第一行：显示一句话总结
+            if conclusion_text:
+                st.markdown(f'<div class="section-header">一句话总结</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="conclusion-highlight">{conclusion_text}</div>', unsafe_allow_html=True)
+            
+            # 然后渲染其他内容
+            render_interpretation(st.session_state[interpretation_key])
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # 原文信息
+            st.markdown('<div class="meta-info">', unsafe_allow_html=True)
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.markdown(f"**期刊：** {article['journal']}")
+            with col2:
+                st.markdown(f"**年份：** {article['year']}")
+            with col3:
+                if article['pmid']:
+                    st.markdown(f"[PMC 原文链接](https://pubmed.ncbi.nlm.nih.gov/{article['pmid']}/)")
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # 原文摘要
+            abstract_key = f"show_abstract_{article['pmid']}"
+            lang_key = f"lang_{article['pmid']}"
+            
+            if lang_key not in st.session_state.abstract_lang:
+                st.session_state.abstract_lang[lang_key] = "中"
+            
+            col_btn1, col_btn2 = st.columns([1, 5])
+            with col_btn1:
+                if st.button(f"{'隐藏' if st.session_state.show_abstract.get(abstract_key, False) else '查看'}原文摘要", key=f"btn_{article['pmid']}"):
+                    st.session_state.show_abstract[abstract_key] = not st.session_state.show_abstract.get(abstract_key, False)
+                    st.rerun()
+            
+            with col_btn2:
                 if st.session_state.show_abstract.get(abstract_key, False):
                     current_lang = st.session_state.abstract_lang[lang_key]
-                    
-                    if current_lang == "EN":
-                        st.markdown(f'<div class="abstract-box">{article["abstract"]}</div>', unsafe_allow_html=True)
-                    else:
+                    if st.button(f"🌐 {current_lang}", key=f"lang_{article['pmid']}", help="点击切换中英文"):
+                        st.session_state.abstract_lang[lang_key] = "EN" if current_lang == "中" else "中"
+                        st.rerun()
+            
+            if st.session_state.show_abstract.get(abstract_key, False):
+                current_lang = st.session_state.abstract_lang[lang_key]
+                
+                if current_lang == "EN":
+                    st.markdown(f'<div class="abstract-box">{article["abstract"]}</div>', unsafe_allow_html=True)
+                else:
                         translated_key = f"translated_{article['pmid']}"
                         if translated_key not in st.session_state.translated_abstracts:
                             with st.spinner("正在翻译..."):
