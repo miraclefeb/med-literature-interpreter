@@ -22,6 +22,15 @@ st.markdown("""
     h3 {
         font-size: 1.1rem !important;
     }
+    
+    /* 摘要区域样式 */
+    .abstract-box {
+        background-color: #f7f7f7;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 3px solid #E8762D;
+        margin-top: 10px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -97,6 +106,8 @@ if 'articles' not in st.session_state:
     st.session_state.articles = []
 if 'query_done' not in st.session_state:
     st.session_state.query_done = False
+if 'show_abstract' not in st.session_state:
+    st.session_state.show_abstract = {}
 
 # 主界面
 query = st.text_input(
@@ -114,6 +125,7 @@ if st.button("🚀 开始解读", type="primary"):
         # 清空之前的结果
         st.session_state.articles = []
         st.session_state.query_done = False
+        st.session_state.show_abstract = {}
         
         try:
             # 1. 翻译问题为英文（如果是中文）
@@ -268,8 +280,15 @@ if st.session_state.query_done and st.session_state.articles:
                     if article['pmid']:
                         st.markdown(f"[查看原文](https://pubmed.ncbi.nlm.nih.gov/{article['pmid']}/)")
                 
-                with st.expander("查看原文摘要"):
-                    st.markdown(article['abstract'])
+                # 显示/隐藏摘要按钮
+                abstract_key = f"show_abstract_{article['pmid']}"
+                if st.button(f"{'隐藏' if st.session_state.show_abstract.get(abstract_key, False) else '查看'}原文摘要", key=f"btn_{article['pmid']}"):
+                    st.session_state.show_abstract[abstract_key] = not st.session_state.show_abstract.get(abstract_key, False)
+                    st.rerun()
+                
+                # 显示摘要（如果按钮被点击）
+                if st.session_state.show_abstract.get(abstract_key, False):
+                    st.markdown(f'<div class="abstract-box">{article["abstract"]}</div>', unsafe_allow_html=True)
 
 # 页脚
 st.markdown("---")
