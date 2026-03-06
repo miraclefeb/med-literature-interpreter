@@ -10,6 +10,21 @@ st.set_page_config(
     layout="wide"
 )
 
+# 自定义CSS样式
+st.markdown("""
+<style>
+    /* 文献标题字号统一 */
+    .stExpander summary p {
+        font-size: 1rem !important;
+    }
+    
+    /* 结构化解读标题缩小两个字号 */
+    h3 {
+        font-size: 1.1rem !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # 标题
 st.title("📚 文献解读 PubMed 版")
 st.markdown("**为临床医生提供结构化文献解读**")
@@ -77,10 +92,17 @@ def call_deepseek(prompt: str, api_key: str) -> str:
     except Exception as e:
         raise Exception(f"API调用失败: {str(e)}")
 
+# 使用session_state保存结果，防止刷新丢失
+if 'articles' not in st.session_state:
+    st.session_state.articles = []
+if 'query_done' not in st.session_state:
+    st.session_state.query_done = False
+
 # 主界面
 query = st.text_input(
     "🔍 输入医学问题（中文/英文均可）",
-    placeholder="例如：SGLT2抑制剂在心血管疾病中的作用"
+    placeholder="例如：SGLT2抑制剂在心血管疾病中的作用",
+    key="query_input"
 )
 
 if st.button("🚀 开始解读", type="primary"):
@@ -89,6 +111,10 @@ if st.button("🚀 开始解读", type="primary"):
     elif not deepseek_api_key:
         st.error("请在侧边栏配置 DeepSeek API Key")
     else:
+        # 清空之前的结果
+        st.session_state.articles = []
+        st.session_state.query_done = False
+        
         try:
             # 1. 翻译问题为英文（如果是中文）
             with st.spinner("正在处理问题..."):
@@ -163,11 +189,24 @@ if st.button("🚀 开始解读", type="primary"):
                         except Exception as e:
                             continue
                     
-                    # 5. 为每篇文献生成解读
-                    for idx, article in enumerate(articles, 1):
-                        with st.expander(f"📄 文献 {idx}: {article['title'][:80]}...", expanded=(idx==1)):
-                            with st.spinner("正在生成解读..."):
-                                prompt = f"""你是一名医学研究解读助手，请基于以下PubMed文献信息，为临床医生生成结构化解读。
+                    # 保存到session_state
+                    st.session_state.articles = articles
+                    st.session_state.query_done = True
+                        
+        except Exception as e:
+            st.error(f"发生错误: {str(e)}")
+
+# 显示结果（从session_state读取，不会因为刷新丢失）
+if st.session_state.query_done and st.session_state.articles:
+    for idx, article in enumerate(st.session_state.articles, 1):
+        with st.expander(f"📄 文献 {idx}: {article['title'][:80]}...", expanded=(idx==1)):
+            # 检查是否已经生成过解读
+            interpretation_key = f"interpretation_{article['pmid']}"
+            
+            if interpretation_key not in st.session_state:
+                # 第一次生成解读
+                with st.spinner("正在生成解读..."):
+                    prompt = f"""你是一名医学研究解读助手，请基于以下PubMed文献信息，为临床医生生成结构化解读。
 
 要求：
 1. 用中文输出
@@ -204,34 +243,33 @@ if st.button("🚀 开始解读", type="primary"):
 期刊：{article['journal']}
 年份：{article['year']}
 """
-                                
-                                try:
-                                    interpretation = call_deepseek(prompt, deepseek_api_key)
-                                    
-                                    # 显示解读
-                                    st.markdown("### 📊 结构化解读")
-                                    st.markdown(interpretation)
-                                    
-                                    # 显示原文信息
-                                    st.markdown("---")
-                                    st.markdown("### 📖 原文信息")
-                                    col1, col2 = st.columns(2)
-                                    with col1:
-                                        st.markdown(f"**期刊：** {article['journal']}")
-                                        st.markdown(f"**年份：** {article['year']}")
-                                    with col2:
-                                        st.markdown(f"**PMID：** {article['pmid']}")
-                                        if article['pmid']:
-                                            st.markdown(f"[查看原文](https://pubmed.ncbi.nlm.nih.gov/{article['pmid']}/)")
-                                    
-                                    with st.expander("查看原文摘要"):
-                                        st.markdown(article['abstract'])
-                                    
-                                except Exception as e:
-                                    st.error(f"生成解读失败: {str(e)}")
-                        
-        except Exception as e:
-            st.error(f"发生错误: {str(e)}")
+                    
+                    try:
+                        interpretation = call_deepseek(prompt, deepseek_api_key)
+                        st.session_state[interpretation_key] = interpretation
+                    except Exception as e:
+                        st.error(f"生成解读失败: {str(e)}")
+                        st.session_state[interpretation_key] = None
+            
+            # 显示解读（从session_state读取）
+            if st.session_state.get(interpretation_key):
+                st.markdown("### 📊 结构化解读")
+                st.markdown(st.session_state[interpretation_key])
+                
+                # 显示原文信息
+                st.markdown("---")
+                st.markdown("### 📖 原文信息")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown(f"**期刊：** {article['journal']}")
+                    st.markdown(f"**年份：** {article['year']}")
+                with col2:
+                    st.markdown(f"**PMID：** {article['pmid']}")
+                    if article['pmid']:
+                        st.markdown(f"[查看原文](https://pubmed.ncbi.nlm.nih.gov/{article['pmid']}/)")
+                
+                with st.expander("查看原文摘要"):
+                    st.markdown(article['abstract'])
 
 # 页脚
 st.markdown("---")
