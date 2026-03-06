@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import os
 import xml.etree.ElementTree as ET
+import re
 
 # 页面配置
 st.set_page_config(
@@ -30,6 +31,155 @@ st.markdown("""
         border-radius: 8px;
         border-left: 3px solid #E8762D;
         margin-top: 10px;
+    }
+    
+    /* 研究类型标签样式 */
+    .tag-rct {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        background-color: #FFF4E6;
+        color: #D97706;
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin: 2px;
+    }
+    
+    .tag-meta {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        background-color: #DBEAFE;
+        color: #1E40AF;
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin: 2px;
+    }
+    
+    .tag-cohort {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        background-color: #D1FAE5;
+        color: #047857;
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin: 2px;
+    }
+    
+    .tag-review {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        background-color: #E0E7FF;
+        color: #4338CA;
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin: 2px;
+    }
+    
+    .tag-case {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        background-color: #FCE7F3;
+        color: #BE185D;
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin: 2px;
+    }
+    
+    .tag-other {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        background-color: #F3F4F6;
+        color: #4B5563;
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin: 2px;
+    }
+    
+    /* 证据等级标签 */
+    .tag-high {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        background-color: #D1FAE5;
+        color: #047857;
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin: 2px;
+    }
+    
+    .tag-medium {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        background-color: #FEF3C7;
+        color: #B45309;
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin: 2px;
+    }
+    
+    .tag-low {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        background-color: #FEE2E2;
+        color: #B91C1C;
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin: 2px;
+    }
+    
+    /* 期刊级别标签 */
+    .tag-top {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        background-color: #FEF3C7;
+        color: #B45309;
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin: 2px;
+    }
+    
+    .tag-high-impact {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        background-color: #E0E7FF;
+        color: #4338CA;
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin: 2px;
+    }
+    
+    .tag-general {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        background-color: #F3F4F6;
+        color: #6B7280;
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin: 2px;
+    }
+    
+    /* 内容缩进样式 */
+    .indent-content {
+        margin-left: 20px;
+        line-height: 1.8;
+    }
+    
+    /* 章节标题样式 */
+    .section-title {
+        font-weight: 700;
+        color: #1F2937;
+        margin-top: 16px;
+        margin-bottom: 8px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -100,6 +250,68 @@ def call_deepseek(prompt: str, api_key: str) -> str:
         return response.json()["choices"][0]["message"]["content"]
     except Exception as e:
         raise Exception(f"API调用失败: {str(e)}")
+
+def format_interpretation(text: str) -> str:
+    """格式化解读文本，添加标签和缩进"""
+    lines = text.split('\n')
+    formatted_lines = []
+    current_section = None
+    
+    for line in lines:
+        line = line.strip()
+        if not line:
+            formatted_lines.append("")
+            continue
+        
+        # 检测章节标题
+        if line.startswith('【') and line.endswith('】'):
+            formatted_lines.append(f'<div class="section-title">{line}</div>')
+            current_section = line
+        # 处理证据标签部分
+        elif current_section == '【证据标签】':
+            # 研究类型标签
+            if '研究类型：' in line or '研究类型:' in line:
+                content = line.split('：')[-1].split(':')[-1].strip()
+                tag_class = 'tag-other'
+                if 'RCT' in content.upper():
+                    tag_class = 'tag-rct'
+                elif 'Meta' in content or 'meta' in content:
+                    tag_class = 'tag-meta'
+                elif 'Cohort' in content or 'cohort' in content or '队列' in content:
+                    tag_class = 'tag-cohort'
+                elif 'Review' in content or 'review' in content or '综述' in content:
+                    tag_class = 'tag-review'
+                elif 'Case' in content or 'case' in content or '病例' in content:
+                    tag_class = 'tag-case'
+                formatted_lines.append(f'<div class="indent-content">研究类型：<span class="{tag_class}">{content}</span></div>')
+            # 证据等级标签
+            elif '证据等级：' in line or '证据等级:' in line:
+                content = line.split('：')[-1].split(':')[-1].strip()
+                tag_class = 'tag-medium'
+                if '高' in content:
+                    tag_class = 'tag-high'
+                elif '低' in content:
+                    tag_class = 'tag-low'
+                formatted_lines.append(f'<div class="indent-content">证据等级：<span class="{tag_class}">{content}</span></div>')
+            # 期刊级别标签
+            elif '期刊级别：' in line or '期刊级别:' in line:
+                content = line.split('：')[-1].split(':')[-1].strip()
+                tag_class = 'tag-general'
+                if '顶级' in content:
+                    tag_class = 'tag-top'
+                elif '高影响力' in content:
+                    tag_class = 'tag-high-impact'
+                formatted_lines.append(f'<div class="indent-content">期刊级别：<span class="{tag_class}">{content}</span></div>')
+            # 其他内容
+            else:
+                formatted_lines.append(f'<div class="indent-content">{line}</div>')
+        # 其他章节内容缩进
+        elif current_section:
+            formatted_lines.append(f'<div class="indent-content">{line}</div>')
+        else:
+            formatted_lines.append(line)
+    
+    return '\n'.join(formatted_lines)
 
 # 使用session_state保存结果，防止刷新丢失
 if 'articles' not in st.session_state:
@@ -281,7 +493,9 @@ if st.session_state.query_done and st.session_state.articles:
             # 显示解读（从session_state读取）
             if st.session_state.get(interpretation_key):
                 st.markdown("### 📊 结构化临床解读")
-                st.markdown(st.session_state[interpretation_key])
+                # 格式化并显示
+                formatted_text = format_interpretation(st.session_state[interpretation_key])
+                st.markdown(formatted_text, unsafe_allow_html=True)
                 
                 # 显示原文信息
                 st.markdown("---")
