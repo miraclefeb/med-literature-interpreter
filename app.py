@@ -548,7 +548,7 @@ if st.session_state.query_done and st.session_state.articles:
                 with col2:
                     st.markdown(f"**PMID：** {article['pmid']}")
                     if article['pmid']:
-                        st.markdown(f"[PMC](https://pubmed.ncbi.nlm.nih.gov/{article['pmid']}/)")
+                        st.markdown(f"[PMC 原文链接](https://pubmed.ncbi.nlm.nih.gov/{article['pmid']}/)")
                 
                 # 显示/隐藏摘要按钮
                 abstract_key = f"show_abstract_{article['pmid']}"
