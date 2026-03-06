@@ -14,10 +14,11 @@ st.set_page_config(
 # 自定义CSS样式
 st.markdown("""
 <style>
-    /* 文献标题放大一个字号 */
+    /* 文献标题放大两个字号，橙色 */
     .stExpander summary p {
-        font-size: 1.1rem !important;
+        font-size: 1.2rem !important;
         font-weight: 600 !important;
+        color: #E8762D !important;
     }
     
     /* 结构化解读标题缩小一个字号 */
@@ -32,32 +33,6 @@ st.markdown("""
         border-radius: 8px;
         border-left: 3px solid #E8762D;
         margin-top: 10px;
-    }
-    
-    /* 语言切换开关样式 */
-    .lang-switch {
-        display: inline-flex;
-        align-items: center;
-        background-color: #E5E7EB;
-        border-radius: 20px;
-        padding: 2px;
-        font-size: 0.75rem;
-        margin-left: 10px;
-    }
-    
-    .lang-option {
-        padding: 4px 12px;
-        border-radius: 18px;
-        cursor: pointer;
-        transition: all 0.3s;
-        color: #6B7280;
-        font-weight: 500;
-    }
-    
-    .lang-option.active {
-        background-color: white;
-        color: #1F2937;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
     
     /* 研究类型标签样式 */
@@ -554,9 +529,9 @@ if st.session_state.query_done and st.session_state.articles:
                 abstract_key = f"show_abstract_{article['pmid']}"
                 lang_key = f"lang_{article['pmid']}"
                 
-                # 初始化语言状态（默认英文）
+                # 初始化语言状态（默认中文）
                 if lang_key not in st.session_state.abstract_lang:
-                    st.session_state.abstract_lang[lang_key] = "en"
+                    st.session_state.abstract_lang[lang_key] = "中"
                 
                 col_btn1, col_btn2 = st.columns([1, 5])
                 with col_btn1:
@@ -566,24 +541,18 @@ if st.session_state.query_done and st.session_state.articles:
                 
                 with col_btn2:
                     if st.session_state.show_abstract.get(abstract_key, False):
-                        # 语言切换滑块
+                        # 单按钮切换
                         current_lang = st.session_state.abstract_lang[lang_key]
-                        
-                        col_en, col_zh = st.columns(2)
-                        with col_en:
-                            if st.button("英", key=f"en_{article['pmid']}", disabled=(current_lang=="en")):
-                                st.session_state.abstract_lang[lang_key] = "en"
-                                st.rerun()
-                        with col_zh:
-                            if st.button("中", key=f"zh_{article['pmid']}", disabled=(current_lang=="zh")):
-                                st.session_state.abstract_lang[lang_key] = "zh"
-                                st.rerun()
+                        if st.button(f"🌐 {current_lang}", key=f"lang_{article['pmid']}", help="点击切换中英文"):
+                            # 切换语言
+                            st.session_state.abstract_lang[lang_key] = "EN" if current_lang == "中" else "中"
+                            st.rerun()
                 
                 # 显示摘要（如果按钮被点击）
                 if st.session_state.show_abstract.get(abstract_key, False):
                     current_lang = st.session_state.abstract_lang[lang_key]
                     
-                    if current_lang == "en":
+                    if current_lang == "EN":
                         # 显示英文原文
                         st.markdown(f'<div class="abstract-box">{article["abstract"]}</div>', unsafe_allow_html=True)
                     else:
