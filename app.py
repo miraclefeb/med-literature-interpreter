@@ -508,7 +508,7 @@ if st.session_state.query_done and st.session_state.articles:
             
             # 显示解读（从session_state读取）
             if st.session_state.get(interpretation_key):
-                st.markdown("### 📎 结构化临床解读")
+                st.markdown("### 结构化临床解读")
                 # 格式化并显示
                 formatted_text = format_interpretation(st.session_state[interpretation_key])
                 st.markdown(formatted_text, unsafe_allow_html=True)
