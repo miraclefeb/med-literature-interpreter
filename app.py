@@ -6,7 +6,7 @@ import re
 
 # 页面配置
 st.set_page_config(
-    page_title="文献解读 PubMed 版",
+    page_title="医学文献解读助手",
     page_icon="📚",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -203,8 +203,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 标题区域
-st.title("📚 医学文献循证解读")
-st.markdown('<p style="color: #80868b; font-size: 0.95rem; margin-top: -10px;">基于PubMed的临床决策支持工具</p>', unsafe_allow_html=True)
+st.title("📚 医学文献解读助手（PubMed 版）")
+st.markdown('<p style="color: #80868b; font-size: 0.95rem; margin-top: -10px;">基于 PubMed 搜索，现在你可以输入你的问题</p>', unsafe_allow_html=True)
 
 # 侧边栏配置
 with st.sidebar:
@@ -308,7 +308,12 @@ def render_interpretation(interpretation: str):
             
             # 一句话结论特殊处理
             if section_name == "一句话结论":
+                st.markdown(f'<div class="section-header">一句话总结</div>', unsafe_allow_html=True)
                 current_section = "conclusion"
+                continue
+            elif section_name == "证据标签":
+                st.markdown(f'<div class="section-header">证据标签</div>', unsafe_allow_html=True)
+                current_section = "evidence"
                 continue
             else:
                 st.markdown(f'<div class="section-header">{section_name}</div>', unsafe_allow_html=True)
@@ -320,7 +325,7 @@ def render_interpretation(interpretation: str):
             st.markdown(f'<div class="conclusion-highlight">{line}</div>', unsafe_allow_html=True)
             current_section = None
         
-        elif current_section == "证据标签":
+        elif current_section == "evidence":
             # 解析标签
             if '研究类型：' in line or '研究类型:' in line:
                 content = line.split('：')[-1].split(':')[-1].strip()
@@ -333,7 +338,7 @@ def render_interpretation(interpretation: str):
                     badge_class += ' badge-cohort'
                 elif 'Review' in content or '综述' in content:
                     badge_class += ' badge-review'
-                st.markdown(f'<span class="{badge_class}">{content}</span>', unsafe_allow_html=True)
+                st.markdown(f'<div style="margin: 8px 0;"><strong>研究类型：</strong><span class="{badge_class}">{content}</span></div>', unsafe_allow_html=True)
             
             elif '证据等级：' in line or '证据等级:' in line:
                 content = line.split('：')[-1].split(':')[-1].strip()
@@ -344,17 +349,22 @@ def render_interpretation(interpretation: str):
                     badge_class += ' badge-medium'
                 elif '低' in content:
                     badge_class += ' badge-low'
-                st.markdown(f'<span class="{badge_class}">证据等级: {content}</span>', unsafe_allow_html=True)
+                st.markdown(f'<div style="margin: 8px 0;"><strong>证据等级：</strong><span class="{badge_class}">{content}</span></div>', unsafe_allow_html=True)
+            
+            elif '样本量：' in line or '样本量:' in line:
+                content = line.split('：')[-1].split(':')[-1].strip()
+                highlighted = highlight_stats(content)
+                st.markdown(f'<div style="margin: 8px 0;"><strong>样本量：</strong>{highlighted}</div>', unsafe_allow_html=True)
             
             elif '期刊级别：' in line or '期刊级别:' in line:
                 content = line.split('：')[-1].split(':')[-1].strip()
                 badge_class = 'badge'
                 if '顶级' in content:
                     badge_class += ' badge-top'
-                st.markdown(f'<span class="{badge_class}">{content}期刊</span>', unsafe_allow_html=True)
+                st.markdown(f'<div style="margin: 8px 0;"><strong>期刊级别：</strong><span class="{badge_class}">{content}</span></div>', unsafe_allow_html=True)
             
             else:
-                # 样本量等其他信息
+                # 其他信息
                 highlighted = highlight_stats(line)
                 st.markdown(f'<div class="content-text">{highlighted}</div>', unsafe_allow_html=True)
         
@@ -500,7 +510,7 @@ if st.session_state.query_done and st.session_state.articles:
     for idx, (tab, article) in enumerate(zip(tabs, st.session_state.articles), 1):
         with tab:
             # 文献标题
-            st.markdown(f'<h3 style="color: #1a1a1a; margin-bottom: 8px;">{article["title"]}</h3>', unsafe_allow_html=True)
+            st.markdown(f'<h3 style="color: #1a1a1a; margin-bottom: 16px;">{article["title"]}</h3>', unsafe_allow_html=True)
             
             # 生成解读
             interpretation_key = f"interpretation_{article['pmid']}"
