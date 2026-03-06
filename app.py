@@ -512,16 +512,10 @@ if st.session_state.query_done and st.session_state.articles:
     st.markdown("---")
     st.markdown(f"### 📑 检索结果 ({len(st.session_state.articles)} 篇文献)")
     
-    # 使用tabs展示多篇文献
-    if len(st.session_state.articles) > 1:
-        tabs = st.tabs([f"文献 {i+1}" for i in range(len(st.session_state.articles))])
-    else:
-        tabs = [st.container()]
-    
-    for idx, (tab, article) in enumerate(zip(tabs, st.session_state.articles), 1):
-        with tab:
-            # 文献标题
-            st.markdown(f'<h3 style="color: #1a1a1a; margin-bottom: 16px;">{article["title"]}</h3>', unsafe_allow_html=True)
+    # 直接展示文献（不使用tabs或container）
+    for idx, article in enumerate(st.session_state.articles, 1):
+        # 文献标题
+        st.markdown(f'<h3 style="color: #1a1a1a; margin-bottom: 16px;">{article["title"]}</h3>', unsafe_allow_html=True)
             
             # 生成解读
             interpretation_key = f"interpretation_{article['pmid']}"
@@ -590,35 +584,11 @@ if st.session_state.query_done and st.session_state.articles:
             
             # 显示解读
             if st.session_state.get(interpretation_key):
-                # 先提取一句话总结
-                lines = st.session_state[interpretation_key].split('\n')
-                conclusion_text = None
-                current_section = None
-                for line in lines:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    if line.startswith('【') and line.endswith('】'):
-                        section_name = line[1:-1]
-                        if section_name == "一句话结论":
-                            current_section = "conclusion"
-                            continue
-                    elif current_section == "conclusion":
-                        conclusion_text = line
-                        break
-                
-                # 开始卡片 - 所有内容都放在卡片里
                 st.markdown('<div class="literature-card">', unsafe_allow_html=True)
-                
-                # 第一行：显示一句话总结
-                if conclusion_text:
-                    st.markdown(f'<div class="section-header">一句话总结</div>', unsafe_allow_html=True)
-                    st.markdown(f'<div class="conclusion-highlight">{conclusion_text}</div>', unsafe_allow_html=True)
-                
-                # 然后渲染其他内容
                 render_interpretation(st.session_state[interpretation_key])
+                st.markdown('</div>', unsafe_allow_html=True)
                 
-                # 原文信息（放在卡片内）
+                # 原文信息
                 st.markdown('<div class="meta-info">', unsafe_allow_html=True)
                 col1, col2, col3 = st.columns(3)
                 with col1:
@@ -630,7 +600,7 @@ if st.session_state.query_done and st.session_state.articles:
                         st.markdown(f"[PMC 原文链接](https://pubmed.ncbi.nlm.nih.gov/{article['pmid']}/)")
                 st.markdown('</div>', unsafe_allow_html=True)
                 
-                # 原文摘要（放在卡片内）
+                # 原文摘要
                 abstract_key = f"show_abstract_{article['pmid']}"
                 lang_key = f"lang_{article['pmid']}"
                 
@@ -666,9 +636,6 @@ if st.session_state.query_done and st.session_state.articles:
                                     st.session_state.translated_abstracts[translated_key] = f"翻译失败: {str(e)}"
                         
                         st.markdown(f'<div class="abstract-box">{st.session_state.translated_abstracts[translated_key]}</div>', unsafe_allow_html=True)
-                
-                # 关闭卡片容器
-                st.markdown('</div>', unsafe_allow_html=True)
 
 # 页脚
 st.markdown("---")
