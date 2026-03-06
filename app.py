@@ -14,14 +14,15 @@ st.set_page_config(
 # 自定义CSS样式
 st.markdown("""
 <style>
-    /* 文献标题字号统一 */
+    /* 文献标题放大一个字号 */
     .stExpander summary p {
-        font-size: 1rem !important;
+        font-size: 1.1rem !important;
+        font-weight: 600 !important;
     }
     
-    /* 结构化解读标题缩小两个字号 */
+    /* 结构化解读标题缩小一个字号 */
     h3 {
-        font-size: 1.1rem !important;
+        font-size: 0.95rem !important;
     }
     
     /* 摘要区域样式 */
@@ -181,6 +182,16 @@ st.markdown("""
         margin-top: 16px;
         margin-bottom: 8px;
     }
+    
+    /* Tab样式 */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        padding: 8px 16px;
+        font-size: 0.9rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -251,6 +262,14 @@ def call_deepseek(prompt: str, api_key: str) -> str:
     except Exception as e:
         raise Exception(f"API调用失败: {str(e)}")
 
+def translate_abstract(abstract: str, api_key: str) -> str:
+    """翻译摘要为中文"""
+    try:
+        prompt = f"请将以下英文医学摘要翻译成中文，保持专业术语准确：\n\n{abstract}"
+        return call_deepseek(prompt, api_key)
+    except Exception as e:
+        return f"翻译失败: {str(e)}"
+
 def format_interpretation(text: str) -> str:
     """格式化解读文本，添加标签和缩进"""
     lines = text.split('\n')
@@ -320,6 +339,8 @@ if 'query_done' not in st.session_state:
     st.session_state.query_done = False
 if 'show_abstract' not in st.session_state:
     st.session_state.show_abstract = {}
+if 'translated_abstracts' not in st.session_state:
+    st.session_state.translated_abstracts = {}
 
 # 主界面
 query = st.text_input(
@@ -338,6 +359,7 @@ if st.button("🚀 开始解读", type="primary"):
         st.session_state.articles = []
         st.session_state.query_done = False
         st.session_state.show_abstract = {}
+        st.session_state.translated_abstracts = {}
         
         try:
             # 1. 翻译问题为英文（如果是中文）
@@ -492,7 +514,7 @@ if st.session_state.query_done and st.session_state.articles:
             
             # 显示解读（从session_state读取）
             if st.session_state.get(interpretation_key):
-                st.markdown("### 📊 结构化临床解读")
+                st.markdown("### 📎 结构化临床解读")
                 # 格式化并显示
                 formatted_text = format_interpretation(st.session_state[interpretation_key])
                 st.markdown(formatted_text, unsafe_allow_html=True)
@@ -517,7 +539,24 @@ if st.session_state.query_done and st.session_state.articles:
                 
                 # 显示摘要（如果按钮被点击）
                 if st.session_state.show_abstract.get(abstract_key, False):
-                    st.markdown(f'<div class="abstract-box">{article["abstract"]}</div>', unsafe_allow_html=True)
+                    # 使用Tab切换中英文
+                    tab1, tab2 = st.tabs(["📄 英文原文", "🌐 中文翻译"])
+                    
+                    with tab1:
+                        st.markdown(f'<div class="abstract-box">{article["abstract"]}</div>', unsafe_allow_html=True)
+                    
+                    with tab2:
+                        # 检查是否已翻译
+                        translated_key = f"translated_{article['pmid']}"
+                        if translated_key not in st.session_state.translated_abstracts:
+                            with st.spinner("正在翻译..."):
+                                try:
+                                    translated = translate_abstract(article["abstract"], deepseek_api_key)
+                                    st.session_state.translated_abstracts[translated_key] = translated
+                                except Exception as e:
+                                    st.session_state.translated_abstracts[translated_key] = f"翻译失败: {str(e)}"
+                        
+                        st.markdown(f'<div class="abstract-box">{st.session_state.translated_abstracts[translated_key]}</div>', unsafe_allow_html=True)
 
 # 页脚
 st.markdown("---")
