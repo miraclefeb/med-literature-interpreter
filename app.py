@@ -523,6 +523,9 @@ if st.session_state.query_done and st.session_state.articles:
             # 文献标题
             st.markdown(f'<h3 style="color: #1a1a1a; margin-bottom: 16px;">{article["title"]}</h3>', unsafe_allow_html=True)
             
+            # 添加分割线（测试空白容器）
+            st.markdown("---")
+            
             # 生成解读
             interpretation_key = f"interpretation_{article['pmid']}"
             
