@@ -29,6 +29,8 @@ st.markdown("""
         font-weight: 600;
         color: #1a1a1a;
         letter-spacing: -0.02em;
+        margin-top: 0px;
+        margin-bottom: 6px;
     }
     
     /* 搜索框样式 */
@@ -203,8 +205,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 标题区域
-st.title("📚 医学文献解读助手（PubMed 版）")
-st.markdown('<p style="color: #80868b; font-size: 0.95rem; margin-top: -10px;">基于 PubMed 搜索，现在你可以输入你的问题</p>', unsafe_allow_html=True)
+st.markdown("<h1 style='margin-bottom:6px;'>📚 医学文献解读助手（PubMed 版）</h1>", unsafe_allow_html=True)
+st.markdown('<p style="color:#80868b;font-size:0.95rem;margin-top:0px;margin-bottom:10px;">基于 PubMed 搜索，现在你可以输入你的问题</p>', unsafe_allow_html=True)
 
 # 侧边栏配置
 with st.sidebar:
