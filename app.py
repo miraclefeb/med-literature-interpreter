@@ -223,7 +223,7 @@ with st.sidebar:
     
     st.markdown("---")
     
-    with st.expander("📖 使用说明"):
+    with st.expander("📖 使用说明", expanded=True):
         st.markdown("""
         **功能特点：**
         - 🌐 中英文问题自动翻译
