@@ -3,6 +3,9 @@ import requests
 import os
 import xml.etree.ElementTree as ET
 import re
+import time
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 # 页面配置
 st.set_page_config(
@@ -241,6 +244,23 @@ with st.sidebar:
     st.markdown("---")
     st.markdown('<p style="font-size: 0.75rem; color: #999;">数据来源：PubMed<br>AI解读：DeepSeek</p>', unsafe_allow_html=True)
 
+
+# 创建带重试的 requests session
+def get_retry_session(retries=3, backoff_factor=1):
+    """创建带重试机制的 requests session"""
+    session = requests.Session()
+    retry = Retry(
+        total=retries,
+        read=retries,
+        connect=retries,
+        backoff_factor=backoff_factor,
+        status_forcelist=(500, 502, 504),
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount('http://', adapter)
+    session.mount('https://', adapter)
+    return session
+
 # 工具函数
 def extract_text(element):
     if element is None:
@@ -449,7 +469,9 @@ if search_button:
                     "retmode": "json",
                     "sort": "relevance"
                 }
-                search_response = requests.get(search_url, params=search_params, timeout=10)
+                # 使用重试机制
+                session = get_retry_session(retries=3, backoff_factor=2)
+                search_response = session.get(search_url, params=search_params, timeout=15)
                 search_data = search_response.json()
                 
                 pmids = search_data.get("esearchresult", {}).get("idlist", [])
@@ -468,7 +490,7 @@ if search_button:
                     "id": ",".join(pmids),
                     "retmode": "xml"
                 }
-                fetch_response = requests.get(fetch_url, params=fetch_params, timeout=10)
+                fetch_response = session.get(fetch_url, params=fetch_params, timeout=15)
                 
                 # 解析XML
                 root = ET.fromstring(fetch_response.content)
