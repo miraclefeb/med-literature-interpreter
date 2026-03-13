@@ -9,7 +9,7 @@ from urllib3.util.retry import Retry
 
 # 页面配置
 st.set_page_config(
-    page_title="30 秒读懂 PubMed-文献解读助手",
+    page_title="30 秒读懂 PubMed",
     page_icon=None,
     layout="wide",
     initial_sidebar_state="expanded"
@@ -208,7 +208,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 标题区域
-st.markdown("<h1 style='margin-bottom:6px;'>30 秒读懂 PubMed-文献解读助手</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='margin-bottom:6px;'>30 秒读懂 PubMed</h1>", unsafe_allow_html=True)
 st.markdown('<p style="color:#80868b;font-size:0.95rem;margin-top:0px;margin-bottom:10px;">基于 PubMed 搜索，现在你可以输入你的问题</p>', unsafe_allow_html=True)
 
 # 侧边栏配置
